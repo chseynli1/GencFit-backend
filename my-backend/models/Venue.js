@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+// const { v4: uuidv4 } = require('uuid');
 
 const venueSchema = new mongoose.Schema({
-  id: {
-    type: String,
-    default: uuidv4,
-    unique: true,
-    required: true
-  },
+  // id: {
+  //   type: String,
+  //   default: uuidv4,
+  //   unique: true,
+  //   required: true
+  // },
   name: {
     type: String,
     required: [true, 'Venue name is required'],
@@ -73,7 +73,7 @@ const venueSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-venueSchema.index({ id: 1 });
+// venueSchema.index({ id: 1 });
 venueSchema.index({ venue_type: 1 });
 venueSchema.index({ is_active: 1 });
 venueSchema.index({ name: 'text', description: 'text', location: 'text' });

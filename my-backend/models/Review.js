@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
-const { v4: uuidv4 } = require('uuid');
+// const { v4: uuidv4 } = require('uuid');
 
 const reviewSchema = new mongoose.Schema({
-  id: {
-    type: String,
-    default: uuidv4,
-    unique: true,
-    required: true
-  },
+  // id: {
+  //   type: String,
+  //   default: uuidv4,
+  //   unique: true,
+  //   required: true
+  // },
   user_id: {
     type: String,
     required: [true, 'User ID is required'],
@@ -54,7 +54,7 @@ const reviewSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-reviewSchema.index({ id: 1 });
+// reviewSchema.index({ id: 1 });
 reviewSchema.index({ user_id: 1 });
 reviewSchema.index({ entity_type: 1, entity_id: 1 });
 reviewSchema.index({ user_id: 1, entity_type: 1, entity_id: 1 }, { unique: true });

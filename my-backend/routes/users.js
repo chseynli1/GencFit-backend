@@ -6,8 +6,41 @@ const {
   validatePagination,
   validateObjectId,
 } = require("../middleware/validation");
-
 const router = express.Router();
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Şəkillər üçün qovluq
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir);
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const upload = multer({ storage });
+
+
+// Temporary public route for testing users
+router.get("/test-users", async (req, res) => {
+  try {
+    const users = await User.find(); // bütün istifadəçiləri gətir
+    res.json(users);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Failed to get users" });
+  }
+});
+
 
 // Apply authentication to all routes
 router.use(protect);
@@ -77,9 +110,42 @@ router.get("/", validatePagination, async (req, res) => {
   }
 });
 
+// @desc    Get user statistics
+// @route   GET /api/users/stats
+// @access  Private/Admin
+router.get("/stats/overview", async (req, res) => {
+  try {
+    const [totalUsers, activeUsers, adminUsers, recentUsers] =
+      await Promise.all([
+        User.countDocuments(),
+        User.countDocuments({ is_active: true }),
+        User.countDocuments({ role: "admin" }),
+        User.countDocuments({
+          created_at: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+        }),
+      ]);
+
+    const stats = {
+      total_users: totalUsers,
+      active_users: activeUsers,
+      inactive_users: totalUsers - activeUsers,
+      admin_users: adminUsers,
+      regular_users: totalUsers - adminUsers,
+      recent_users_30_days: recentUsers,
+    };
+
+    success(res, stats, "User statistics retrieved successfully");
+  } catch (err) {
+    console.error("Get user stats error:", err);
+    error(res, "Failed to retrieve user statistics", 500);
+  }
+});
+
 // @desc    Get single user
 // @route   GET /api/users/:id
 // @access  Private/Admin
+
+
 router.get("/:id", validateObjectId, async (req, res) => {
   try {
     const user = await User.findByCustomId(req.params.id).select("-password");
@@ -107,6 +173,9 @@ router.get("/:id", validateObjectId, async (req, res) => {
 // @desc    Update user
 // @route   PUT /api/users/:id
 // @access  Private/Admin
+
+
+
 router.put("/:id", validateObjectId, async (req, res) => {
   try {
     const { full_name, role, is_active } = req.body;
@@ -200,35 +269,25 @@ router.delete("/:id", validateObjectId, async (req, res) => {
   }
 });
 
-// @desc    Get user statistics
-// @route   GET /api/users/stats
-// @access  Private/Admin
-router.get("/stats/overview", async (req, res) => {
+// Profil məlumatlarını yenilə + avatar upload
+router.put('/profile/:id', upload.single('image'), async (req, res) => {
   try {
-    const [totalUsers, activeUsers, adminUsers, recentUsers] =
-      await Promise.all([
-        User.countDocuments(),
-        User.countDocuments({ is_active: true }),
-        User.countDocuments({ role: "admin" }),
-        User.countDocuments({
-          created_at: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-        }),
-      ]);
-
-    const stats = {
-      total_users: totalUsers,
-      active_users: activeUsers,
-      inactive_users: totalUsers - activeUsers,
-      admin_users: adminUsers,
-      regular_users: totalUsers - adminUsers,
-      recent_users_30_days: recentUsers,
+    const updateData = {
+      full_name: req.body.full_name,
+      email: req.body.email
     };
 
-    success(res, stats, "User statistics retrieved successfully");
+    if (req.file?.path) {
+      updateData.image = req.file.path; 
+    }
+
+    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    res.json(user);
   } catch (err) {
-    console.error("Get user stats error:", err);
-    error(res, "Failed to retrieve user statistics", 500);
+    res.status(500).json({ message: err.message });
   }
 });
+
+
 
 module.exports = router;

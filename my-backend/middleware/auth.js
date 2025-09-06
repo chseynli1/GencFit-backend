@@ -3,56 +3,21 @@ const User = require("../models/User");
 
 // Protect routes - JWT authentication middleware
 const protect = async (req, res, next) => {
-  let token;
+  try {
+    const token = extractToken(req);
+    if (!token) return res.status(401).json({ message: "No token provided" });
 
-  // Check for token in headers
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith("Bearer")
-  ) {
-    try {
-      // Get token from header
-      token = req.headers.authorization.split(" ")[1];
+    const decoded = verifyToken(token);
+    const user = await User.findById(decoded.id).select("-password");
+    if (!user) return res.status(404).json({ message: "User not found" });
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-      // Get user from token
-      req.user = await User.findByCustomId(decoded.id).select("-password");
-
-      if (!req.user) {
-        return res.status(401).json({
-          success: false,
-          message: "User not found",
-        });
-      }
-
-      // Check if user is active
-      if (!req.user.is_active) {
-        return res.status(401).json({
-          success: false,
-          message: "Account is deactivated",
-        });
-      }
-
-      next();
-    } catch (error) {
-      console.error("Auth middleware error:", error);
-      return res.status(401).json({
-        success: false,
-        message: "Invalid authentication credentials",
-      });
-    }
-  }
-
-  if (!token) {
-    return res.status(401).json({
-      success: false,
-      message: "Access denied. No token provided",
-    });
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error("Auth error:", err);
+    res.status(401).json({ message: "Invalid token" });
   }
 };
-
 // Admin only middleware
 const adminOnly = (req, res, next) => {
   if (req.user && req.user.role === "admin") {
@@ -76,10 +41,9 @@ const optionalAuth = async (req, res, next) => {
     try {
       token = req.headers.authorization.split(" ")[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
-      req.user = await User.findByCustomId(decoded.id).select("-password");
+      req.user = await User.findById(decoded.id).select("-password");
     } catch (error) {
-      // If token is invalid, continue without user
-      req.user = null;
+      req.user = null; // If token invalid, just continue
     }
   }
 

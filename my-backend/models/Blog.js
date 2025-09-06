@@ -1,14 +1,7 @@
 const mongoose = require("mongoose");
-const { v4: uuidv4 } = require("uuid");
 
 const blogSchema = new mongoose.Schema(
   {
-    id: {
-      type: String,
-      default: uuidv4,
-      unique: true,
-      required: true,
-    },
     title: {
       type: String,
       required: [true, "Blog title is required"],
@@ -20,6 +13,10 @@ const blogSchema = new mongoose.Schema(
       required: [true, "Blog content is required"],
       maxlength: [10000, "Content cannot exceed 10,000 characters"],
     },
+    image: {
+      type: String,
+      default: "https://via.placeholder.com/400x250",
+    },
     author_id: {
       type: String,
       required: [true, "Author ID is required"],
@@ -29,6 +26,11 @@ const blogSchema = new mongoose.Schema(
       type: String,
       required: [true, "Author name is required"],
       trim: true,
+    },
+    category: {
+      type: String,
+      enum: ["idman-sağlamlıq", "motivasiya", "incəsənət"],
+      required: false,
     },
     tags: [
       {
@@ -42,33 +44,20 @@ const blogSchema = new mongoose.Schema(
       default: true,
       required: true,
     },
-    created_at: {
-      type: Date,
-      default: Date.now,
-    },
-    updated_at: {
-      type: Date,
-      default: Date.now,
-    },
   },
   {
-    timestamps: false,
+    timestamps: true,
     versionKey: false,
   }
 );
 
 // Indexes for performance
-blogSchema.index({ id: 1 });
+// blogSchema.index({ id: 1 });
 blogSchema.index({ author_id: 1 });
 blogSchema.index({ is_published: 1 });
 blogSchema.index({ created_at: -1 });
 blogSchema.index({ title: "text", content: "text" });
 
-// Update updated_at field before saving
-blogSchema.pre("save", function (next) {
-  this.updated_at = new Date();
-  next();
-});
 
 // Transform output
 blogSchema.methods.toJSON = function () {

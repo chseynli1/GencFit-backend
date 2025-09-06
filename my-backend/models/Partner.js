@@ -1,14 +1,14 @@
 const mongoose = require("mongoose");
-const { v4: uuidv4 } = require("uuid");
+// const { v4: uuidv4 } = require("uuid");
 
 const partnerSchema = new mongoose.Schema(
   {
-    id: {
-      type: String,
-      default: uuidv4,
-      unique: true,
-      required: true,
-    },
+    // id: {
+    //   type: String,
+    //   default: uuidv4,
+    //   unique: true,
+    //   required: true,
+    // },
     company_name: {
       type: String,
       required: [true, "Company name is required"],
@@ -72,7 +72,7 @@ const partnerSchema = new mongoose.Schema(
 );
 
 // Indexes for performance
-partnerSchema.index({ id: 1 });
+// partnerSchema.index({ id: 1 });
 partnerSchema.index({ is_active: 1 });
 partnerSchema.index({ partnership_type: 1 });
 partnerSchema.index({ company_name: "text", description: "text" });

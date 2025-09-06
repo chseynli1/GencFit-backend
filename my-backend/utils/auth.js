@@ -13,6 +13,17 @@ const generateToken = (userId) => {
   );
 };
 
+const { generateToken } = require('../utils/auth');
+
+// Login və ya register sonrası
+const token = generateToken(user._id);
+res.json({
+  success: true,
+  token,
+  user: user.toJSON()
+});
+
+
 // Verify JWT token
 const verifyToken = (token) => {
   try {
