@@ -60,15 +60,31 @@ router.get("/", optionalAuth, validatePagination, async (req, res) => {
       };
     }
 
+
+
+    app.get('/drop-blog-id-index', async (req, res) => {
+      try {
+        await Blog.collection.dropIndex('id_1');
+        res.send('Index id_1 dropped successfully');
+      } catch (err) {
+        res.status(500).send('Error dropping index: ' + err.message);
+      }
+    });
+
+
+
+
+
+
     // Get blogs and total count
     const [blogs, total] = await Promise.all([
-      Blog.find(query).sort({ created_at: -1 }).skip(skip).limit(limit),
+      Blog.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
       Blog.countDocuments(query),
     ]);
 
     if (limit === 0) {
       // Return all blogs without pagination
-      const allBlogs = await Blog.find(query).sort({ created_at: -1 });
+      const allBlogs = await Blog.find(query).sort({ createdAt: -1 });
       return success(res, allBlogs, "Blogs retrieved successfully");
     }
 
@@ -101,23 +117,47 @@ router.get("/:id", validateObjectId, async (req, res) => {
 // @access  Private
 router.post("/", protect, validateBlog, async (req, res) => {
   try {
-    const { title, content, tags = [], is_published = true } = req.body;
+    // ensure req.user exists
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Unauthorized: no user found from token",
+      });
+    }
 
-    const blog = await Blog.create({
-      title,
-      content,
-      author_id: req.user.id,
-      author_name: req.user.full_name,
-      tags,
-      is_published,
+    const authorName = req.user.full_name || req.user.email || "Unknown Author";
+    const authorId = req.user._id;
+
+    const blog = new Blog({
+      title: req.body.title,
+      content: req.body.content,
+      image: req.body.image || "https://via.placeholder.com/400x250",
+      author_id: authorId,
+      author_name: authorName,
+      category: req.body.category,
+      tags: req.body.tags || [],
+      is_published: req.body.is_published !== undefined ? req.body.is_published : true,
     });
 
-    created(res, blog, "Blog created successfully");
+    await blog.save();
+
+    res.status(201).json({
+      success: true,
+      data: blog,
+      message: "Blog created successfully",
+    });
   } catch (err) {
-    console.error("Create blog error:", err);
-    error(res, "Failed to create blog", 500);
+    console.error("Create blog error:", err.message, err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to create blog",
+      error: err.message,
+      timestamp: new Date(),
+    });
   }
 });
+
+
 
 // @desc    Update blog
 // @route   PUT /api/blogs/:id
@@ -200,7 +240,7 @@ router.get("/my/posts", protect, validatePagination, async (req, res) => {
     }
 
     const [blogs, total] = await Promise.all([
-      Blog.find(query).sort({ created_at: -1 }).skip(skip).limit(limit),
+      Blog.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit),
       Blog.countDocuments(query),
     ]);
 

@@ -18,13 +18,13 @@ const blogSchema = new mongoose.Schema(
       default: "https://via.placeholder.com/400x250",
     },
     author_id: {
-      type: String,
-      required: [true, "Author ID is required"],
+      type: mongoose.Schema.Types.ObjectId,
       ref: "User",
+      required: [true, "Author ID is required"],
     },
     author_name: {
       type: String,
-      required: [true, "Author name is required"],
+      required: false,
       trim: true,
     },
     category: {
@@ -62,6 +62,7 @@ blogSchema.index({ title: "text", content: "text" });
 // Transform output
 blogSchema.methods.toJSON = function () {
   const blogObject = this.toObject();
+  blogObject.id = blogObject._id
   delete blogObject._id;
   delete blogObject.__v;
   return blogObject;
@@ -69,7 +70,7 @@ blogSchema.methods.toJSON = function () {
 
 // Static method to find by custom id
 blogSchema.statics.findByCustomId = function (customId) {
-  return this.findOne({ id: customId, is_published: true });
+  return this.findOne({ _id: customId});
 };
 
 module.exports = mongoose.model("Blog", blogSchema);

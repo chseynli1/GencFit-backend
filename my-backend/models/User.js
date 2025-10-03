@@ -80,7 +80,7 @@ userSchema.methods.toJSON = function () {
 
 // Static method to find by custom id
 userSchema.statics.findByCustomId = function (customId) {
-  return this.findOne({ id: customId });
+  return this.findOne(customId);
 };
 
 module.exports = mongoose.model('User', userSchema);
