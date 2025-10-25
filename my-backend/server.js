@@ -54,7 +54,7 @@ app.use(
 );
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json());
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Logging middleware
@@ -92,6 +92,8 @@ const reviewRoutes = require('./routes/reviews');
 const contactRoutes = require('./routes/contacts');
 const appointmentRoutes = require('./routes/appointments');
 const dashboardRoutes = require('./routes/dashboard');
+const chatRoutes = require('./routes/chat');
+
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -103,7 +105,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/contacts', contactRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-
+app.use('/api/chat', chatRoutes);
 // Root endpoint
 app.get('/api', (req, res) => {
   res.json({

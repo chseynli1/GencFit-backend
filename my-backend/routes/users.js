@@ -44,6 +44,7 @@ router.get("/test-users", async (req, res) => {
 // @desc    Get logged-in user info
 // @route   GET /api/users/me
 // @access  Private
+
 router.get("/me", protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id).select("-password");
