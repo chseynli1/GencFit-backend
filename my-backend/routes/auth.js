@@ -5,7 +5,12 @@ const bcrypt = require("bcryptjs");
 const User = require("../models/User"); // User mongoose modelini özün yaratmısan deyə fərz edirəm
 const { protect } = require("../middleware/auth");
 // Token yaratmaq funksiyası
-const createToken = (user) => jwt.sign({ id: user._id.toString(), email: user.email }, process.env.JWT_SECRET, { expiresIn: "1h" });
+const createToken = (user) =>
+  jwt.sign(
+    { id: user._id.toString(), email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
 
 //
 // =============================
@@ -18,7 +23,10 @@ router.get(
 
 router.get(
   "/google/callback",
-  passport.authenticate("google", { session: false, failureRedirect: "/?error=unauthorized" }),
+  passport.authenticate("google", {
+    session: false,
+    failureRedirect: "/?error=unauthorized",
+  }),
   (req, res) => {
     console.log("=== CALLBACK ROUTE ===");
     console.log("req.user:", req.user);
@@ -45,11 +53,13 @@ router.get(
 // =============================
 router.post("/register", async (req, res) => {
   try {
-    const { email, password, full_name } = req.body;
+    const { email, password, full_name, phone, location } = req.body;
 
     // required field check
-    if (!email || !password || !full_name) {
-      return res.status(400).json({ message: "Email, password və full_name tələb olunur" });
+    if (!email || !password || !full_name || !location || !phone) {
+      return res
+        .status(400)
+        .json({ message: "Email, password , location , phone və full_name tələb olunur" });
     }
 
     // user mövcuddursa error qaytar
@@ -63,6 +73,8 @@ router.post("/register", async (req, res) => {
       email,
       password,
       full_name,
+      location,
+      phone
     });
 
     await newUser.save();

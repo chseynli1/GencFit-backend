@@ -1,4 +1,5 @@
 const express = require("express");
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const { success, error, notFound, paginated } = require("../utils/response");
 const { protect, adminOnly } = require("../middleware/auth");
@@ -28,7 +29,6 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage });
-
 
 // Temporary public route for testing users
 router.get("/test-users", async (req, res) => {
@@ -64,18 +64,89 @@ router.get("/me", protect, async (req, res) => {
     };
 
     return success(res, userResponse, "User retrieved successfully");
-
   } catch (err) {
     console.error(err);
     return error(res, "Failed to retrieve user", 500);
   }
 });
 
-
-
-// Apply authentication to all routes
+// ===============================
+// BUNDAN AŞAĞISI AUTH TƏLƏB EDİR
+// ===============================
 router.use(protect);
-// router.use(adminOnly); // All user management routes require admin access
+// router.use(adminOnly); // lazım olsa aktivləşdir
+
+// @desc    Öz profil məlumatını JSON ilə yenilə (full_name, phone, location)
+// @route   PUT /api/users/me
+// @access  Private
+router.put("/me", async (req, res) => {
+  try {
+    const { full_name, phone, location } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) return notFound(res, "User not found");
+
+    if (typeof full_name === "string" && full_name.trim()) user.full_name = full_name.trim();
+    if (typeof phone === "string") user.phone = phone.trim();
+    if (typeof location === "string") user.location = location.trim();
+
+    await user.save();
+
+    const userResponse = {
+      id: user._id.toString(),
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      phone: user.phone || "",
+      location: user.location || "",
+      image: user.image,
+      is_active: user.is_active,
+      last_login: user.last_login,
+      created_at: user.createdAt,
+      updated_at: user.UpdatedAt,
+    };
+
+    return success(res, userResponse, "Profile updated successfully");
+  } catch (err) {
+    console.error("Update profile (me) error:", err);
+    return error(res, "Failed to update profile", 500);
+  }
+});
+
+// @desc    Şifrə dəyiş (köhnəni təsdiqlə)
+// @route   PUT /api/users/change-password
+// @access  Private
+router.put("/change-password", async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword) {
+      return error(res, "Bütün sahələri doldurun", 400);
+    }
+    if (String(newPassword).length < 6) {
+      return error(res, "Yeni şifrə ən azı 6 simvol olmalıdır", 400);
+    }
+
+    // password-u seçmək üçün +password ilə götürürük
+    const user = await User.findById(req.user._id).select("+password");
+    if (!user) return notFound(res, "User not found");
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return error(res, "Köhnə şifrə yanlışdır", 400);
+    }
+
+    // yeni şifrəni hash edib saxla
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+    await user.save();
+
+    return success(res, null, "Şifrə uğurla dəyişdirildi");
+  } catch (err) {
+    console.error("Change password error:", err);
+    return error(res, "Failed to change password", 500);
+  }
+});
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -127,7 +198,6 @@ router.get("/", validatePagination, async (req, res) => {
       location: user.location,
       created_at: user.created_at,
       last_login: user.last_login,
-
     }));
 
     paginated(
@@ -145,7 +215,7 @@ router.get("/", validatePagination, async (req, res) => {
 });
 
 // @desc    Get user statistics
-// @route   GET /api/users/stats
+// @route   GET /api/users/stats/overview
 // @access  Private/Admin
 router.get("/stats/overview", async (req, res) => {
   try {
@@ -178,8 +248,6 @@ router.get("/stats/overview", async (req, res) => {
 // @desc    Get single user
 // @route   GET /api/users/:id
 // @access  Private/Admin
-
-
 router.get("/:id", validateObjectId, async (req, res) => {
   try {
     const user = await User.findByCustomId(req.params.id).select("-password");
@@ -206,15 +274,12 @@ router.get("/:id", validateObjectId, async (req, res) => {
   }
 });
 
-// @desc    Update user
+// @desc    Update user (admin)
 // @route   PUT /api/users/:id
 // @access  Private/Admin
-
-
-
 router.put("/:id", validateObjectId, async (req, res) => {
   try {
-    const { full_name, role, is_active } = req.body;
+    const { full_name, role, is_active, phone, location } = req.body;
 
     const user = await User.findByCustomId(req.params.id);
     if (!user) {
@@ -228,9 +293,10 @@ router.put("/:id", validateObjectId, async (req, res) => {
 
     // Update fields
     if (full_name !== undefined) user.full_name = full_name;
-    if (role !== undefined && ["user", "admin"].includes(role))
-      user.role = role;
+    if (role !== undefined && ["user", "admin"].includes(role)) user.role = role;
     if (is_active !== undefined) user.is_active = is_active;
+    if (phone !== undefined) user.phone = phone;
+    if (location !== undefined) user.location = location;
 
     await user.save();
 
@@ -307,29 +373,37 @@ router.delete("/:id", validateObjectId, async (req, res) => {
   }
 });
 
-// Profil məlumatlarını yenilə + avatar upload
+// @desc    Profil məlumatlarını yenilə + avatar upload (multipart/form-data)
+// @route   PUT /api/users/profile/:id
+// @access  Private (öz profilini və ya admin)
 router.put('/profile/:id', upload.single('image'), async (req, res) => {
   try {
     const updateData = {
       full_name: req.body.full_name,
-      email: req.body.email,
+      email: req.body.email,     // e-mail dəyişikliyi biznes qaydasına uyğun deyilsə, bunu silə bilərsən
       phone: req.body.phone,
       location: req.body.location,
     };
+
+    // boş stringləri at
+    Object.keys(updateData).forEach((k) => {
+      if (updateData[k] === undefined || updateData[k] === null || updateData[k] === "") {
+        delete updateData[k];
+      }
+    });
 
     if (req.file?.path) {
       updateData.image = req.file.path;
     }
 
-    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true }).select("-password");
+    if (!user) return notFound(res, "User not found");
+
     res.json(user);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error("Profile update (multipart) error:", err);
+    res.status(500).json({ message: err.message || "Failed to update profile" });
   }
 });
-
-
-
-
 
 module.exports = router;
