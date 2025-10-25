@@ -41,10 +41,41 @@ router.get("/test-users", async (req, res) => {
   }
 });
 
+// @desc    Get logged-in user info
+// @route   GET /api/users/me
+// @access  Private
+router.get("/me", protect, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("-password");
+    if (!user) return notFound(res, "User not found");
+
+    const userResponse = {
+      id: user._id.toString(),
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      phone: user.phone || "",
+      location: user.location || "",
+      image: user.image,
+      is_active: user.is_active,
+      last_login: user.last_login,
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
+    };
+
+    return success(res, userResponse, "User retrieved successfully");
+
+  } catch (err) {
+    console.error(err);
+    return error(res, "Failed to retrieve user", 500);
+  }
+});
+
+
 
 // Apply authentication to all routes
 router.use(protect);
-router.use(adminOnly); // All user management routes require admin access
+// router.use(adminOnly); // All user management routes require admin access
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -92,8 +123,11 @@ router.get("/", validatePagination, async (req, res) => {
       full_name: user.full_name,
       role: user.role,
       is_active: user.is_active,
+      phone: user.phone,
+      location: user.location,
       created_at: user.created_at,
       last_login: user.last_login,
+
     }));
 
     paginated(
@@ -159,6 +193,8 @@ router.get("/:id", validateObjectId, async (req, res) => {
       full_name: user.full_name,
       role: user.role,
       is_active: user.is_active,
+      phone: user.phone,
+      location: user.location,
       created_at: user.created_at,
       last_login: user.last_login,
     };
@@ -203,6 +239,8 @@ router.put("/:id", validateObjectId, async (req, res) => {
       email: user.email,
       full_name: user.full_name,
       role: user.role,
+      phone: user.phone,
+      location: user.location,
       is_active: user.is_active,
       created_at: user.created_at,
       updated_at: user.updated_at,
@@ -274,11 +312,13 @@ router.put('/profile/:id', upload.single('image'), async (req, res) => {
   try {
     const updateData = {
       full_name: req.body.full_name,
-      email: req.body.email
+      email: req.body.email,
+      phone: req.body.phone,
+      location: req.body.location,
     };
 
     if (req.file?.path) {
-      updateData.image = req.file.path; 
+      updateData.image = req.file.path;
     }
 
     const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -287,6 +327,8 @@ router.put('/profile/:id', upload.single('image'), async (req, res) => {
     res.status(500).json({ message: err.message });
   }
 });
+
+
 
 
 

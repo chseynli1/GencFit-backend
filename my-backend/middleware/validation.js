@@ -52,8 +52,8 @@ const validateVenue = [
     .withMessage('Venue name must be between 2 and 200 characters'),
   body('description')
     .trim()
-    .isLength({ min: 10, max: 1000 })
-    .withMessage('Description must be between 10 and 1000 characters'),
+    .isLength({ min: 5, max: 1000 })
+    .withMessage('Description must be between 5 and 1000 characters'),
   body('venue_type')
     .isIn(['sports', 'entertainment', 'both'])
     .withMessage('Venue type must be sports, entertainment, or both'),

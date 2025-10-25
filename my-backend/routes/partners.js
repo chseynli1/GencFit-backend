@@ -1,5 +1,6 @@
 const express = require("express");
 const Partner = require("../models/Partner");
+// const {generateToken} = require("../utils/auth")
 const {
   success,
   error,
@@ -97,6 +98,8 @@ router.post("/", protect, adminOnly, validatePartner, async (req, res) => {
       partnership_type,
       description,
       website,
+      image,
+      location,
     } = req.body;
 
     const partner = await Partner.create({
@@ -107,6 +110,8 @@ router.post("/", protect, adminOnly, validatePartner, async (req, res) => {
       partnership_type,
       description,
       website,
+      image,
+      location,
     });
 
     created(res, partner, "Partner created successfully");
@@ -139,6 +144,8 @@ router.put(
         partnership_type,
         description,
         website,
+        image,
+        location,
       } = req.body;
 
       const partner = await Partner.findByCustomId(req.params.id);
@@ -154,6 +161,8 @@ router.put(
       partner.partnership_type = partnership_type;
       partner.description = description;
       partner.website = website;
+      partner.image = image;
+      partner.location = location;
 
       await partner.save();
 

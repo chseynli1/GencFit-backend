@@ -44,6 +44,10 @@ const reviewSchema = new mongoose.Schema({
     trim: true,
     maxlength: [1000, 'Comment cannot exceed 1000 characters']
   },
+  user_avatar: {
+    type: String,
+    default: null
+  },
   created_at: {
     type: Date,
     default: Date.now
@@ -61,15 +65,15 @@ reviewSchema.index({ user_id: 1, entity_type: 1, entity_id: 1 }, { unique: true 
 reviewSchema.index({ created_at: -1 });
 
 // Transform output
-reviewSchema.methods.toJSON = function() {
+reviewSchema.methods.toJSON = function () {
   const reviewObject = this.toObject();
-  delete reviewObject._id;
+  // delete reviewObject._id;
   delete reviewObject.__v;
   return reviewObject;
 };
 
 // Static method to find by custom id
-reviewSchema.statics.findByCustomId = function(customId) {
+reviewSchema.statics.findByCustomId = function (customId) {
   return this.findOne({ id: customId });
 };
 

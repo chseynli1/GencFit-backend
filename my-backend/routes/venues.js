@@ -105,6 +105,8 @@ router.post("/", protect, adminOnly, validateVenue, async (req, res) => {
       amenities = [],
       contact_phone,
       contact_email,
+      image,
+      rating
     } = req.body;
 
     const venue = await Venue.create({
@@ -116,6 +118,8 @@ router.post("/", protect, adminOnly, validateVenue, async (req, res) => {
       amenities,
       contact_phone,
       contact_email,
+      image: image || "",
+      rating
     });
 
     created(res, venue, "Venue created successfully");
@@ -149,6 +153,8 @@ router.put(
         amenities,
         contact_phone,
         contact_email,
+        image,
+        rating
       } = req.body;
 
       const venue = await Venue.findByCustomId(req.params.id);
@@ -165,6 +171,8 @@ router.put(
       venue.amenities = amenities || [];
       venue.contact_phone = contact_phone;
       venue.contact_email = contact_email;
+      venue.image = image || venue.image;
+      venue.rating= rating
 
       await venue.save();
 

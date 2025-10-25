@@ -3,27 +3,24 @@ const mongoose = require("mongoose");
 
 const partnerSchema = new mongoose.Schema(
   {
-    // id: {
-    //   type: String,
-    //   default: uuidv4,
-    //   unique: true,
-    //   required: true,
-    // },
     company_name: {
       type: String,
-      required: [true, "Company name is required"],
+      // required: [true, "Company name is required"],
+      default: "",
       trim: true,
       maxlength: [200, "Company name cannot exceed 200 characters"],
     },
     contact_person: {
       type: String,
-      required: [true, "Contact person is required"],
+      // required: [true, "Contact person is required"],
+      default: "",
       trim: true,
       maxlength: [100, "Contact person name cannot exceed 100 characters"],
     },
     email: {
       type: String,
-      required: [true, "Email is required"],
+      default: "",
+      // required: [true, "Email is required"],
       lowercase: true,
       match: [
         /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
@@ -32,18 +29,28 @@ const partnerSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      required: [true, "Phone is required"],
+      default: "",
+      // required: [true, "Phone is required"],
       match: [/^[\+]?[1-9][\d]{0,15}$/, "Please provide a valid phone number"],
+    },
+    location: {
+      type: String,
+      // required: [true, "Location is required"],
+      default: "",
+      trim: true,
+      maxlength: [200, "Location cannot exceed 200 characters"],
     },
     partnership_type: {
       type: String,
-      required: [true, "Partnership type is required"],
+      default: "",
+      // required: [true, "Partnership type is required"],
       trim: true,
       maxlength: [100, "Partnership type cannot exceed 100 characters"],
     },
     description: {
       type: String,
-      required: [true, "Description is required"],
+      default: "",
+      // required: [true, "Description is required"],
       maxlength: [1000, "Description cannot exceed 1000 characters"],
     },
     website: {
@@ -51,10 +58,14 @@ const partnerSchema = new mongoose.Schema(
       trim: true,
       match: [/^https?:\/\/.+/, "Please provide a valid website URL"],
     },
+    image: {
+      type: String,
+      default: "https://res.cloudinary.com/dzsjtq4zd/image/upload/v1756229683/default-avatar-icon-of-social-media-user-vector_abij8s.jpg"
+    },
     is_active: {
       type: Boolean,
       default: true,
-      required: true,
+      // required: true,
     },
     created_at: {
       type: Date,
@@ -66,7 +77,7 @@ const partnerSchema = new mongoose.Schema(
     },
   },
   {
-    timestamps: false,
+    timestamps: true,
     versionKey: false,
   }
 );
@@ -93,7 +104,7 @@ partnerSchema.methods.toJSON = function () {
 
 // Static method to find by custom id
 partnerSchema.statics.findByCustomId = function (customId) {
-  return this.findOne({ id: customId, is_active: true });
+  return this.findOne({ _id: customId, is_active: true });
 };
 
 module.exports = mongoose.model("Partner", partnerSchema);

@@ -62,7 +62,7 @@ router.get("/", optionalAuth, validatePagination, async (req, res) => {
 
 
 
-    app.get('/drop-blog-id-index', async (req, res) => {
+    router.get('/drop-blog-id-index', async (req, res) => {
       try {
         await Blog.collection.dropIndex('id_1');
         res.send('Index id_1 dropped successfully');

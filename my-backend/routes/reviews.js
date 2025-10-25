@@ -20,6 +20,19 @@ const {
 
 const router = express.Router();
 
+
+
+
+
+router.get("/", async (req, res) => {
+  try {
+    const reviews = await Review.find()
+    res.json(reviews)
+  } catch (error) {
+    res.status(500).json({ message: "Server xətası" })
+  }
+})
+
 // @desc    Get reviews for a specific entity
 // @route   GET /api/reviews/:entity_type/:entity_id
 // @access  Public
@@ -156,6 +169,7 @@ router.post("/", protect, validateReview, async (req, res) => {
     const review = await Review.create({
       user_id: req.user.id,
       user_name: req.user.full_name,
+      user_avatar: req.user.user_avatar  || req.user.image || null,
       entity_type,
       entity_id,
       rating,
@@ -215,7 +229,7 @@ router.put("/:id", protect, validateObjectId, async (req, res) => {
 // @access  Private
 router.delete("/:id", protect, validateObjectId, async (req, res) => {
   try {
-    const review = await Review.findByCustomId(req.params.id);
+    const review = await Review.findById(req.params.id);
     if (!review) {
       return notFound(res, "Review not found");
     }
@@ -225,7 +239,7 @@ router.delete("/:id", protect, validateObjectId, async (req, res) => {
       return error(res, "Not authorized to delete this review", 403);
     }
 
-    await Review.deleteOne({ id: req.params.id });
+    await Review.deleteOne({ _id: req.params.id });
 
     success(res, null, "Review deleted successfully");
   } catch (err) {

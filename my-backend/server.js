@@ -32,14 +32,14 @@ app.use(helmet());
 app.use(compression());
 
 // Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 dəqiqə
-  max: 100,
-  message: {
-    error: 'Too many requests from this IP, please try again later.',
-  },
-});
-app.use('/api/', limiter);
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000, // 15 dəqiqə
+//   max: 500,
+//   message: {
+//     error: 'Too many requests from this IP, please try again later.',
+//   },
+// });
+// app.use('/api/', limiter);
 
 // CORS configuration
 app.use(

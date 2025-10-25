@@ -173,7 +173,7 @@ router.get("/", protect, validatePagination, async (req, res) => {
 // @access  Private
 router.get("/:id", protect, validateObjectId, async (req, res) => {
   try {
-    const appointment = await Appointment.findByCustomId(req.params.id);
+    const appointment = await Appointment.findOne({ id: req.params.id });
     if (!appointment) {
       return notFound(res, "Appointment not found");
     }
@@ -290,7 +290,7 @@ router.put(
 // @access  Private
 router.delete("/:id", protect, validateObjectId, async (req, res) => {
   try {
-    const appointment = await Appointment.findByCustomId(req.params.id);
+    const appointment = await Appointment.findOne({ id: req.params.id });
     if (!appointment) {
       return notFound(res, "Appointment not found");
     }

@@ -54,6 +54,18 @@ const venueSchema = new mongoose.Schema({
       'Please provide a valid email'
     ]
   },
+
+  rating: {
+    type: Number,
+    min: 0,
+    max: 5,
+    default: 0,
+  },
+
+  image: {
+    type: String,
+    default: ""
+  },
   is_active: {
     type: Boolean,
     default: true,
@@ -79,22 +91,23 @@ venueSchema.index({ is_active: 1 });
 venueSchema.index({ name: 'text', description: 'text', location: 'text' });
 
 // Update updated_at field before saving
-venueSchema.pre('save', function(next) {
+venueSchema.pre('save', function (next) {
   this.updated_at = new Date();
   next();
 });
 
 // Transform output
-venueSchema.methods.toJSON = function() {
+venueSchema.methods.toJSON = function () {
   const venueObject = this.toObject();
+  venueObject.id = venueObject._id;
   delete venueObject._id;
   delete venueObject.__v;
   return venueObject;
 };
 
 // Static method to find by custom id
-venueSchema.statics.findByCustomId = function(customId) {
-  return this.findOne({ id: customId, is_active: true });
+venueSchema.statics.findByCustomId = function (customId) {
+  return this.findOne({ _id: customId });
 };
 
 module.exports = mongoose.model('Venue', venueSchema);

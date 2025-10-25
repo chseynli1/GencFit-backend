@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
-// const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4 } = require('uuid');
 
 const appointmentSchema = new mongoose.Schema({
-  // id: {
-  //   type: String,
-  //   default: uuidv4,
-  //   unique: true,
-  //   required: true
-  // },
+  id: {
+    type: String,
+    default: uuidv4,
+    unique: true,
+    required: true
+  },
   user_id: {
     type: String,
     required: [true, 'User ID is required'],
@@ -32,7 +32,7 @@ const appointmentSchema = new mongoose.Schema({
     type: Date,
     required: [true, 'Appointment date is required'],
     validate: {
-      validator: function(value) {
+      validator: function (value) {
         return value > new Date();
       },
       message: 'Appointment date must be in the future'
@@ -84,21 +84,22 @@ appointmentSchema.index({ appointment_date: 1 });
 appointmentSchema.index({ created_at: -1 });
 
 // Update updated_at field before saving
-appointmentSchema.pre('save', function(next) {
+appointmentSchema.pre('save', function (next) {
   this.updated_at = new Date();
   next();
 });
 
 // Transform output
-appointmentSchema.methods.toJSON = function() {
+appointmentSchema.methods.toJSON = function () {
   const appointmentObject = this.toObject();
+  appointmentObject.id = this.id;
   delete appointmentObject._id;
   delete appointmentObject.__v;
   return appointmentObject;
 };
 
 // Static method to find by custom id
-appointmentSchema.statics.findByCustomId = function(customId) {
+appointmentSchema.statics.findByCustomId = function (customId) {
   return this.findOne({ id: customId });
 };
 

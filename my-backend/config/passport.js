@@ -23,6 +23,8 @@ passport.use(
               email: profile.emails[0].value,
               full_name: profile.displayName,
               password: uuidv4(),
+              phone: phone || "",
+              location: location || ""
             });
           } else {
             user.googleId = profile.id;
