@@ -193,8 +193,8 @@ const validateAppointment = [
     .withMessage('Duration must be between 1 and 24 hours'),
   body('purpose')
     .trim()
-    .isLength({ min: 5, max: 500 })
-    .withMessage('Purpose must be between 5 and 500 characters'),
+    .isLength({ min: 1, max: 500 })
+    .withMessage('Purpose must be between 1 and 500 characters'),
   body('notes')
     .optional()
     .trim()
