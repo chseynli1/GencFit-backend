@@ -14,21 +14,27 @@ const fs = require('fs');
 
 // Şəkillər üçün qovluq
 const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+
 
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) =>
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1e9) + path.extname(file.originalname))
+});
+
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 3 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!/\.jpe?g|\.png|\.webp$/.test(ext)) return cb(new Error("Yalnız JPG, PNG və WEBP"));
+    cb(null, true);
   }
 });
 
-const upload = multer({ storage });
+
 
 // Temporary public route for testing users
 router.get("/test-users", async (req, res) => {
@@ -77,6 +83,46 @@ router.get("/me", protect, async (req, res) => {
 router.use(protect);
 // router.use(adminOnly); // lazım olsa aktivləşdir
 
+
+
+
+
+
+// @desc    Avatar yenilə (yalnız öz profilin)
+// @route   PUT /api/users/me/avatar
+// @access  Private
+router.put('/me/avatar', protect, upload.single('image'), async (req, res) => {
+
+   console.log('HIT /api/users/me/avatar');           // <- route-a çatırıqmı?
+  console.log('req.file =', req.file);               // <- multer file obyektini verdi?
+  console.log('req.body =', req.body); 
+
+  
+  if (!req.file) return error(res, "Şəkil tapılmadı", 400);
+  const publicPath = `/uploads/${req.file.filename}`;
+
+  const user = await User.findById(req.user._id);
+  if (!user) return notFound(res, "User not found");
+
+  user.image = publicPath;
+  await user.save();
+
+  return success(res, {
+    id: user._id.toString(),
+    email: user.email,
+    full_name: user.full_name,
+    phone: user.phone || "",
+    location: user.location || "",
+    image: user.image,
+    is_active: user.is_active,
+    last_login: user.last_login,
+    created_at: user.createdAt,
+    updated_at: user.updatedAt,
+  }, "Avatar updated successfully");
+});
+
+
+
 // @desc    Öz profil məlumatını JSON ilə yenilə (full_name, phone, location)
 // @route   PUT /api/users/me
 // @access  Private
@@ -104,7 +150,7 @@ router.put("/me", async (req, res) => {
       is_active: user.is_active,
       last_login: user.last_login,
       created_at: user.createdAt,
-      updated_at: user.UpdatedAt,
+      updated_at: user.updatedAt,
     };
 
     return success(res, userResponse, "Profile updated successfully");
@@ -149,6 +195,9 @@ router.put("/change-password", async (req, res) => {
   }
 });
 
+
+
+
 // @desc    Get all users
 // @route   GET /api/users
 // @access  Private/Admin
@@ -183,7 +232,7 @@ router.get("/", validatePagination, async (req, res) => {
     const [users, total] = await Promise.all([
       User.find(query)
         .select("-password")
-        .sort({ created_at: -1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
       User.countDocuments(query),
@@ -197,7 +246,7 @@ router.get("/", validatePagination, async (req, res) => {
       is_active: user.is_active,
       phone: user.phone,
       location: user.location,
-      created_at: user.created_at,
+      created_at: user.createdAt,
       last_login: user.last_login,
     }));
 
@@ -264,7 +313,7 @@ router.get("/:id", validateObjectId, async (req, res) => {
       is_active: user.is_active,
       phone: user.phone,
       location: user.location,
-      created_at: user.created_at,
+      created_at: user.createdAt,
       last_login: user.last_login,
     };
 
@@ -309,7 +358,7 @@ router.put("/:id", validateObjectId, async (req, res) => {
       phone: user.phone,
       location: user.location,
       is_active: user.is_active,
-      created_at: user.created_at,
+      created_at: user.createdAt,
       updated_at: user.updated_at,
     };
 
@@ -377,11 +426,15 @@ router.delete("/:id", validateObjectId, async (req, res) => {
 // @desc    Profil məlumatlarını yenilə + avatar upload (multipart/form-data)
 // @route   PUT /api/users/profile/:id
 // @access  Private (öz profilini və ya admin)
-router.put('/profile/:id', upload.single('image'), async (req, res) => {
+router.put('/profile/:id', protect, upload.single('image'), async (req, res) => {
   try {
+
+    if (String(req.user._id) !== String(req.params.id) && req.user.role !== 'admin') {
+      return error(res, "You are not allowed to modify this profile", 403);
+    }
+
     const updateData = {
       full_name: req.body.full_name,
-      email: req.body.email,     // e-mail dəyişikliyi biznes qaydasına uyğun deyilsə, bunu silə bilərsən
       phone: req.body.phone,
       location: req.body.location,
     };
@@ -393,14 +446,26 @@ router.put('/profile/:id', upload.single('image'), async (req, res) => {
       }
     });
 
-    if (req.file?.path) {
-      updateData.image = req.file.path;
+    if (req.file?.filename) {
+      updateData.image = `/uploads/${req.file.filename}`;
     }
 
     const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true }).select("-password");
     if (!user) return notFound(res, "User not found");
 
-    res.json(user);
+    return success(res, {
+      id: user._id.toString(),
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role,
+      phone: user.phone || "",
+      location: user.location || "",
+      image: user.image,
+      is_active: user.is_active,
+      last_login: user.last_login,
+      created_at: user.createdAt,
+      updated_at: user.updatedAt,
+    }, "Profile updated successfully")
   } catch (err) {
     console.error("Profile update (multipart) error:", err);
     res.status(500).json({ message: err.message || "Failed to update profile" });

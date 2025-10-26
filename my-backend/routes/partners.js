@@ -1,5 +1,9 @@
 const express = require("express");
 const Partner = require("../models/Partner");
+const Lead = require("../models/Lead")
+const rateLimit = require("express-rate-limit");
+
+
 // const {generateToken} = require("../utils/auth")
 const {
   success,
@@ -16,6 +20,43 @@ const {
 } = require("../middleware/validation");
 
 const router = express.Router();
+
+
+
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+});
+
+function normalizeAzPhone(input) {
+  // +99450xxxxxxx, 050xxxxxxx, 50xxxxxxx -> +99450xxxxxxx
+  let p = (input || "").replace(/[^\d+]/g, "");
+  if (p.startsWith("00")) p = "+" + p.slice(2);
+  if (p.startsWith("0")) p = "+994" + p.slice(1);
+  if (/^\d{9}$/.test(p)) p = "+994" + p; // təkcə 9 rəqəm yazıbsa
+  return p;
+}
+
+// TODO: burada real SMS/Telegram inteqrasiya edə bilərsən
+async function sendSMS(to, text) {
+  // Məs: Twilio/Sinch/Nexmo SDK — hazırda no-op:
+  console.log("[SMS MOCK] to:", to, "text:", text);
+}
+
+async function notifyTelegram(message) {
+  // Optional: admin-ə TG bildiriş
+  if (!process.env.TG_BOT_TOKEN || !process.env.TG_CHAT_ID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${process.env.TG_BOT_TOKEN}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: process.env.TG_CHAT_ID, text: message })
+    });
+  } catch (_) { }
+}
+
+
 
 // @desc    Get all partners
 // @route   GET /api/partners
@@ -122,6 +163,43 @@ router.post("/", protect, adminOnly, validatePartner, async (req, res) => {
     } else {
       error(res, "Failed to create partner", 500);
     }
+  }
+});
+
+
+
+router.post("/inquiries", limiter, async (req, res) => {
+  try {
+    const raw = String(req.body.phone || "").trim();
+    const phone = normalizeAzPhone(raw);
+
+    // çox primitiv yoxlama
+    if (!phone.startsWith("+994") || phone.length < 13) {
+      return res.status(400).json({ success: false, message: "Telefon formatı yanlışdır" });
+    }
+
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const exists = await Lead.findOne({ phone, createdAt: { $gte: since } });
+    if (exists) {
+      return res.status(409).json({ success: false, message: "Bu nömrədən artıq sorğu var. Tezliklə əlaqə saxlayacağıq." });
+    }
+
+    const lead = await Lead.create({
+      phone,
+      source: "partners_page",
+      ip: req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress,
+    });
+
+    // opsional: istifadəçiyə SMS qəbz
+    await sendSMS(phone, "GəncFit: Sorğunuz qəbul olundu. Operatorumuz qısa zamanda əlaqə saxlayacaq.");
+
+    // opsional: komanda üçün TG bildiriş
+    await notifyTelegram(`Yeni tərəfdaşlıq sorğusu:\nTelefon: ${phone}\nID: ${lead._id}`);
+
+    return res.json({ success: true, message: "Sorğu qəbul olundu", data: { id: lead._id, phone } });
+  } catch (err) {
+    console.error("Partner inquiry error:", err);
+    return res.status(500).json({ success: false, message: "Sorğu göndərilə bilmədi" });
   }
 });
 
