@@ -1,5 +1,4 @@
 const express = require("express");
-const cron = require("node-cron");
 const Appointment = require("../models/Appointment");
 const Venue = require("../models/Venue");
 const {
@@ -20,28 +19,6 @@ const {
 } = require("../middleware/validation");
 
 const router = express.Router();
-
-
-const cron = require("node-cron");
-const Appointment = require("../models/Appointment");
-
-function registerAppointmentCron() {
-  // Hər 15 dəqiqədən bir
-  cron.schedule("*/15 * * * *", async () => {
-    try {
-      const now = new Date();
-      const result = await Appointment.updateMany(
-        { appointment_date: { $lt: now }, status: { $in: ["pending", "confirmed"] } },
-        { $set: { status: "completed", updated_at: now } }
-      );
-      if (result.modifiedCount) {
-        console.log(`✅ Completed: ${result.modifiedCount} appointments`);
-      }
-    } catch (e) {
-      console.error("⛔ appointment cron error:", e);
-    }
-  });
-}
 
 
 
@@ -453,5 +430,4 @@ router.get("/stats/overview", protect, adminOnly, async (req, res) => {
     error(res, "Failed to retrieve appointment statistics", 500);
   }
 });
-module.exports = { registerAppointmentCron };
 module.exports = router;
