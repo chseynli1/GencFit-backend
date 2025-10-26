@@ -1,4 +1,5 @@
 const express = require("express");
+const cron = require("node-cron");
 const Appointment = require("../models/Appointment");
 const Venue = require("../models/Venue");
 const {
@@ -20,6 +21,30 @@ const {
 
 const router = express.Router();
 
+
+const cron = require("node-cron");
+const Appointment = require("../models/Appointment");
+
+function registerAppointmentCron() {
+  // Hər 15 dəqiqədən bir
+  cron.schedule("*/15 * * * *", async () => {
+    try {
+      const now = new Date();
+      const result = await Appointment.updateMany(
+        { appointment_date: { $lt: now }, status: { $in: ["pending", "confirmed"] } },
+        { $set: { status: "completed", updated_at: now } }
+      );
+      if (result.modifiedCount) {
+        console.log(`✅ Completed: ${result.modifiedCount} appointments`);
+      }
+    } catch (e) {
+      console.error("⛔ appointment cron error:", e);
+    }
+  });
+}
+
+
+
 // @desc    Create appointment
 // @route   POST /api/appointments
 // @access  Private
@@ -30,54 +55,63 @@ router.post("/", protect, validateAppointment, async (req, res) => {
       appointment_date,
       duration_hours = 1,
       purpose,
-      notes,
-    } = req.body;
+      notes = "",
+    } = req.body; // ⬅️ venue_name-ı bura almağa ehtiyac yoxdur
 
-    // Check if venue exists and is active
+    // 1) Venue var və aktivdir?
     const venue = await Venue.findByCustomId(venue_id);
-    if (!venue) {
-      return notFound(res, "Venue not found");
+    if (!venue || venue.is_active === false) {
+      return notFound(res, "Venue not found or inactive");
     }
 
-    // Additional date validation
-    const appointmentDateTime = new Date(appointment_date);
-    if (appointmentDateTime <= new Date()) {
+    // 2) Tarixi obyektə çevir və gələcək olmasını yoxla
+    const dt = new Date(appointment_date); // FE ISO string göndərsin
+    if (isNaN(dt.getTime())) {
+      return badRequest(res, "Invalid appointment date");
+    }
+    if (dt <= new Date()) {
       return badRequest(res, "Appointment date must be in the future");
     }
 
-    // Check for conflicting appointments (optional - basic overlap check)
+    // 3) Zaman toqquşması (basic overlap)
+    const windowMs = duration_hours * 60 * 60 * 1000;
     const conflictingAppointment = await Appointment.findOne({
       venue_id,
       appointment_date: {
-        $gte: new Date(
-          appointmentDateTime.getTime() - duration_hours * 60 * 60 * 1000
-        ),
-        $lte: new Date(
-          appointmentDateTime.getTime() + duration_hours * 60 * 60 * 1000
-        ),
+        $gte: new Date(dt.getTime() - windowMs),
+        $lte: new Date(dt.getTime() + windowMs),
       },
       status: { $in: ["pending", "confirmed"] },
     });
-
     if (conflictingAppointment) {
       return badRequest(res, "Time slot is not available");
     }
 
     const appointment = await Appointment.create({
+      id: undefined, 
       user_id: req.user.id,
       user_name: req.user.full_name,
       venue_id,
-      venue_name: venue.name,
-      appointment_date: appointmentDateTime,
+      venue_name: venue.name, 
+      appointment_date: dt,  
       duration_hours,
-      purpose,
-      notes,
+      purpose: (purpose || "").trim(),
+      notes: (notes || "").trim(),
     });
 
-    created(res, appointment, "Appointment booked successfully");
+    return created(res, appointment, "Appointment booked successfully");
   } catch (err) {
+    // Validation error-ları açıq qaytar
+    if (err.name === "ValidationError") {
+      return badRequest(res, {
+        message: "Validation failed",
+        errors: Object.fromEntries(
+          Object.entries(err.errors).map(([k, v]) => [k, v.message])
+        ),
+      });
+    }
     console.error("Create appointment error:", err);
-    error(res, "Failed to book appointment", 500);
+    return error(res, "Failed to book appointment", 500);
   }
 });
 
@@ -419,5 +453,5 @@ router.get("/stats/overview", protect, adminOnly, async (req, res) => {
     error(res, "Failed to retrieve appointment statistics", 500);
   }
 });
-
+module.exports = { registerAppointmentCron };
 module.exports = router;

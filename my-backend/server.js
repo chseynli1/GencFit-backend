@@ -7,6 +7,7 @@ const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const session = require('express-session');
 const passport = require('passport');
+const { registerAppointmentCron } = require("./cron/appointments");
 require('dotenv').config();
 
 // Passport strategiyasını import et (GoogleStrategy burada qeyd olunub)
@@ -14,6 +15,7 @@ require('./config/passport'); // yol sənin fayl strukturuna uyğun olsun
 
 const app = express(); // app-i require-dən sonra yarat
 
+registerAppointmentCron();
 // Session (Google OAuth üçün lazımdır)
 app.use(
   session({
