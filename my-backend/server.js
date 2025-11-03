@@ -34,7 +34,7 @@ app.use(compression());
 app.use(morgan("combined"));
 
 // ✅ CORS (frontend domenlərini .env-dən)
-const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173")
+const allowedOrigins = (process.env.CORS_ORIGINS || "https://genca-deploy-uwbg.vercel.app")
   .split(",")
   .map((s) => s.trim());
 
